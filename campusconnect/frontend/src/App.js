@@ -8,10 +8,10 @@ import Footer from './components/layout/Footer';
 
 // Pages
 import Home from './pages/Home';
-import ItemDetails from './pages/ItemDetails';
-import AddItem from './pages/AddItem';
-import EditItem from './pages/EditItem';
+import EventDetail from './pages/EventDetail';
+import EventReport from './pages/EventReport';
 import NotFound from './pages/NotFound';
+import EventForm from './pages/EventForm'; // Move EventForm to pages instead
 
 function App() {
   return (
@@ -20,10 +20,19 @@ function App() {
         <Navbar />
         <div className="container">
           <Routes>
+            {/* Home page */}
             <Route path="/" element={<Home />} />
-            <Route path="/items/:id" element={<ItemDetails />} />
-            <Route path="/items/add" element={<AddItem />} />
-            <Route path="/items/edit/:id" element={<EditItem />} />
+            
+            {/* Event management routes - Requirement 1 */}
+            <Route path="/events" element={<Home />} /> {/* Use Home as events list for now */}
+            <Route path="/events/create" element={<EventForm />} />
+            <Route path="/events/edit/:id" element={<EventForm />} />
+            <Route path="/events/:id" element={<EventDetail />} />
+            
+            {/* Event report route - Requirement 2 */}
+            <Route path="/reports/events" element={<EventReport />} />
+            
+            {/* 404 page */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

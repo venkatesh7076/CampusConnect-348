@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import ItemForm from '../components/items/ItemForm';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+import ItemForm from "../components/events/ItemForm";
 
 const EditItem = () => {
   const [item, setItem] = useState(null);
@@ -17,7 +17,7 @@ const EditItem = () => {
         setItem(res.data);
         setLoading(false);
       } catch (err) {
-        setError('Failed to fetch item');
+        setError("Failed to fetch item");
         setLoading(false);
         console.error(err);
       }
@@ -31,7 +31,7 @@ const EditItem = () => {
       await axios.put(`http://localhost:5000/api/items/${id}`, formData);
       navigate(`/items/${id}`);
     } catch (err) {
-      setError('Failed to update item');
+      setError("Failed to update item");
       console.error(err);
     }
   };

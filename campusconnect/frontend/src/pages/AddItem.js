@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import ItemForm from '../components/items/ItemForm';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import ItemForm from "../components/events/ItemForm";
 
 const AddItem = () => {
   const [error, setError] = useState(null);
@@ -9,10 +9,10 @@ const AddItem = () => {
 
   const handleSubmit = async (formData) => {
     try {
-      await axios.post('http://localhost:5000/api/items', formData);
-      navigate('/');
+      await axios.post("http://localhost:5000/api/items", formData);
+      navigate("/");
     } catch (err) {
-      setError('Failed to add item');
+      setError("Failed to add item");
       console.error(err);
     }
   };

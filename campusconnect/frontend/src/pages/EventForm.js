@@ -1,76 +1,86 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
 
 const EventForm = () => {
   const [formData, setFormData] = useState({
-    clubId: '',
     title: '',
     description: '',
     category: '',
-    startDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
-    endDate: new Date().toISOString().split('T')[0],
-    location: '',
+    clubId: { name: '', _id: '' },
+    startDate: '',
+    endDate: '',
     venue: {
       building: '',
-      room: '',
-      capacity: 30
-    },
-    capacity: 30
+      room: ''
+    }
   });
   
-  const [clubs, setClubs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
+  // Using const instead of useState to avoid unused setter warnings
+  const clubs = [
+    { _id: '1', name: 'Computer Science Club' },
+    { _id: '2', name: 'Math Club' },
+    { _id: '3', name: 'Psychology Society' }
+  ];
+  
+  const categories = [
+    'Workshop', 'Seminar', 'Study Group', 'Social Event', 'Meeting'
+  ];
+  
+  const [error, setError] = useState('');
   const [isEdit, setIsEdit] = useState(false);
   
   const navigate = useNavigate();
-  const { id } = useParams(); // For edit mode
+  const { id } = useParams();
   
-  // Simulate fetching clubs for dropdown
   useEffect(() => {
-    // Mock data for clubs
-    setClubs([
-      { _id: '1', name: 'Computer Science Club', departmentAffiliation: 'CS' },
-      { _id: '2', name: 'Math Club', departmentAffiliation: 'Mathematics' },
-      { _id: '3', name: 'Psychology Society', departmentAffiliation: 'Psychology' }
-    ]);
-    
+    // If we have an ID, we're editing an existing event
     if (id) {
       setIsEdit(true);
-      // Mock data for editing
-      setFormData({
-        clubId: '1',
-        title: 'Sample Event',
-        description: 'This is a sample event description',
-        category: 'Workshop',
-        startDate: '2025-04-15',
-        endDate: '2025-04-15',
-        location: 'Main Campus',
-        venue: {
-          building: 'Science Building',
-          room: '101',
-          capacity: 50
-        },
-        capacity: 50
-      });
+      
+      // In a real app, fetch the event data from API
+      // For now, get events from localStorage
+      const storedEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
+      const eventToEdit = storedEvents.find(event => event._id === id);
+      
+      if (eventToEdit) {
+        // Format dates for input fields
+        const formatDateForInput = (dateString) => {
+          try {
+            const date = new Date(dateString);
+            return date.toISOString().split('.')[0].slice(0, -3); // Format for datetime-local input
+          } catch {
+            return '';
+          }
+        };
+        
+        setFormData({
+          ...eventToEdit,
+          startDate: formatDateForInput(eventToEdit.startDate),
+          endDate: formatDateForInput(eventToEdit.endDate)
+        });
+      }
     }
-    
-    setLoading(false);
   }, [id]);
   
   const handleChange = e => {
     const { name, value } = e.target;
     
-    // Handle nested venue object fields
-    if (name.startsWith('venue.')) {
-      const venueField = name.split('.')[1];
+    // Handle nested fields
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
       setFormData(prev => ({
         ...prev,
-        venue: {
-          ...prev.venue,
-          [venueField]: value
+        [parent]: {
+          ...prev[parent],
+          [child]: value
         }
+      }));
+    } else if (name === 'clubId') {
+      // Find the selected club
+      const selectedClub = clubs.find(club => club._id === value);
+      setFormData(prev => ({
+        ...prev,
+        clubId: { name: selectedClub.name, _id: selectedClub._id }
       }));
     } else {
       setFormData(prev => ({
@@ -80,194 +90,216 @@ const EventForm = () => {
     }
   };
   
-  const handleSubmit = async e => {
+  const handleSubmit = e => {
     e.preventDefault();
-    setErrorMsg('');
+    
+    // Basic validation
+    if (!formData.title || !formData.description || !formData.clubId._id || !formData.category) {
+      setError('Please fill in all required fields');
+      return;
+    }
     
     try {
-      // Validate form
-      if (!formData.clubId || !formData.title || !formData.description) {
-        setErrorMsg('Please fill in all required fields.');
-        return;
+      // Get existing events
+      const storedEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
+      
+      if (isEdit) {
+        // Update existing event
+        const updatedEvents = storedEvents.map(event => 
+          event._id === id ? { ...formData } : event
+        );
+        localStorage.setItem('campusEvents', JSON.stringify(updatedEvents));
+      } else {
+        // Create new event with a random ID
+        const newEvent = {
+          ...formData,
+          _id: Math.random().toString(36).substr(2, 9),
+          status: 'upcoming'
+        };
+        localStorage.setItem('campusEvents', JSON.stringify([...storedEvents, newEvent]));
       }
       
-      // For demonstration, we'll just log the data and navigate
-      console.log('Form data submitted:', formData);
-      alert(isEdit ? 'Event updated successfully!' : 'Event created successfully!');
-      
-      // Redirect to events list
-      navigate('/events');
-    } catch (err) {
-      console.error('Error saving event:', err);
-      setErrorMsg('Failed to save event. Please try again.');
+      // Redirect to home page
+      navigate('/');
+    } catch (error) {
+      setError('An error occurred while saving the event');
+      console.error(error);
     }
   };
   
-  if (loading) {
-    return <div className="loading">Loading form data...</div>;
-  }
-  
   return (
-    <div className="event-form-container">
-      <h2>{isEdit ? 'Edit Event' : 'Create New Event'}</h2>
-      
-      {errorMsg && <div className="error-message">{errorMsg}</div>}
-      
-      <form onSubmit={handleSubmit} className="event-form">
-        <div className="form-section">
-          <h3>Event Details</h3>
-          
-          <div className="form-group">
-            <label htmlFor="clubId">Club*</label>
-            <select
-              id="clubId"
-              name="clubId"
-              value={formData.clubId}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select a Club</option>
-              {clubs.map(club => (
-                <option key={club._id} value={club._id}>
-                  {club.name} ({club.departmentAffiliation})
-                </option>
-              ))}
-            </select>
+    <div className="max-w-2xl mx-auto bg-white shadow-md rounded-lg overflow-hidden">
+      <div className="px-4 py-5 sm:p-6">
+        <h2 className="text-xl font-semibold text-gray-800 text-center mb-6">
+          {isEdit ? 'Edit Event' : 'Create New Event'}
+        </h2>
+        
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+            <div className="flex">
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
           </div>
-          
-          <div className="form-group">
-            <label htmlFor="title">Event Title*</label>
+        )}
+        
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+              Event Title*
+            </label>
             <input
               type="text"
               id="title"
               name="title"
               value={formData.title}
               onChange={handleChange}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               required
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="description">Description*</label>
+          <div className="mb-4">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+              Description*
+            </label>
             <textarea
               id="description"
               name="description"
               value={formData.description}
               onChange={handleChange}
               rows="4"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               required
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="category">Category*</label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              required
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label htmlFor="clubId" className="block text-sm font-medium text-gray-700 mb-1">
+                Hosting Club*
+              </label>
+              <select
+                id="clubId"
+                name="clubId"
+                value={formData.clubId._id}
+                onChange={handleChange}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              >
+                <option value="">Select a Club</option>
+                {clubs.map(club => (
+                  <option key={club._id} value={club._id}>
+                    {club.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                Category*
+              </label>
+              <select
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              >
+                <option value="">Select a Category</option>
+                {categories.map((category, index) => (
+                  <option key={index} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date & Time*
+              </label>
+              <input
+                type="datetime-local"
+                id="startDate"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleChange}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                End Date & Time*
+              </label>
+              <input
+                type="datetime-local"
+                id="endDate"
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleChange}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label htmlFor="venue.building" className="block text-sm font-medium text-gray-700 mb-1">
+                Building*
+              </label>
+              <input
+                type="text"
+                id="venue.building"
+                name="venue.building"
+                value={formData.venue.building}
+                onChange={handleChange}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="venue.room" className="block text-sm font-medium text-gray-700 mb-1">
+                Room*
+              </label>
+              <input
+                type="text"
+                id="venue.room"
+                name="venue.room"
+                value={formData.venue.room}
+                onChange={handleChange}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
             >
-              <option value="">Select a Category</option>
-              <option value="Workshop">Workshop</option>
-              <option value="Seminar">Seminar</option>
-              <option value="Social">Social</option>
-              <option value="Meeting">Meeting</option>
-            </select>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {isEdit ? 'Update Event' : 'Create Event'}
+            </button>
           </div>
-        </div>
-        
-        <div className="form-section">
-          <h3>Date & Time</h3>
-          
-          <div className="form-group">
-            <label htmlFor="startDate">Start Date*</label>
-            <input
-              type="date"
-              id="startDate"
-              name="startDate"
-              value={formData.startDate}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="endDate">End Date*</label>
-            <input
-              type="date"
-              id="endDate"
-              name="endDate"
-              value={formData.endDate}
-              onChange={handleChange}
-              required
-            />
-          </div>
-        </div>
-        
-        <div className="form-section">
-          <h3>Location & Capacity</h3>
-          
-          <div className="form-group">
-            <label htmlFor="location">Location Description*</label>
-            <input
-              type="text"
-              id="location"
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              placeholder="e.g., Main Campus"
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="venue.building">Building*</label>
-            <input
-              type="text"
-              id="venue.building"
-              name="venue.building"
-              value={formData.venue.building}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="venue.room">Room*</label>
-            <input
-              type="text"
-              id="venue.room"
-              name="venue.room"
-              value={formData.venue.room}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="capacity">Maximum Capacity*</label>
-            <input
-              type="number"
-              id="capacity"
-              name="capacity"
-              value={formData.capacity}
-              onChange={handleChange}
-              min="1"
-              required
-            />
-          </div>
-        </div>
-        
-        <div className="form-actions">
-          <button type="button" className="btn-cancel" onClick={() => navigate('/events')}>
-            Cancel
-          </button>
-          <button type="submit" className="btn-save">
-            {isEdit ? 'Update Event' : 'Create Event'}
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };

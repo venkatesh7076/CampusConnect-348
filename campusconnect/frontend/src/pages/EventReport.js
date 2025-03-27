@@ -1,162 +1,180 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const EventReport = () => {
-  // Report filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedClub, setSelectedClub] = useState('');
   const [selectedVenue, setSelectedVenue] = useState('');
-  
-  // Data states
-  const [clubs, setClubs] = useState([]);
-  const [venues, setVenues] = useState([]);
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [reportGenerated, setReportGenerated] = useState(false);
   
-  // Initialize with mock data
-  useEffect(() => {
-    // Mock data for clubs
-    setClubs([
-      { _id: '1', name: 'Computer Science Club' },
-      { _id: '2', name: 'Math Club' },
-      { _id: '3', name: 'Psychology Society' }
-    ]);
-    
-    // Mock data for venues
-    setVenues([
-      { building: 'Science Building', room: '101' },
-      { building: 'Library', room: '201' },
-      { building: 'Student Center', room: 'A120' }
-    ]);
-    
-    // Set default dates (last month to now)
-    const today = new Date();
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    
-    setStartDate(lastMonth.toISOString().split('T')[0]);
-    setEndDate(today.toISOString().split('T')[0]);
-  }, []);
+  // Sample clubs and venues
+  const clubs = [
+    { _id: '1', name: 'Computer Science Club' },
+    { _id: '2', name: 'Math Club' },
+    { _id: '3', name: 'Psychology Society' }
+  ];
   
-  // Handle report generation
-  const generateReport = () => {
+  const venues = [
+    { building: 'Science Building', room: '101' },
+    { building: 'Science Building', room: '102' },
+    { building: 'Math Building', room: '201' }
+  ];
+  
+  const handleGenerateReport = () => {
     setLoading(true);
     
-    // Simulate API call with a timeout
+    // Simulate API call delay
     setTimeout(() => {
-      // Mock report data
+      // Get events from localStorage
+      const allEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
+      
+      // Filter events based on criteria
+      let filteredEvents = [...allEvents];
+      
+      if (startDate) {
+        filteredEvents = filteredEvents.filter(event => 
+          new Date(event.startDate) >= new Date(startDate)
+        );
+      }
+      
+      if (endDate) {
+        filteredEvents = filteredEvents.filter(event => 
+          new Date(event.endDate) <= new Date(endDate + 'T23:59:59')
+        );
+      }
+      
+      if (selectedClub) {
+        filteredEvents = filteredEvents.filter(event => 
+          event.clubId._id === selectedClub
+        );
+      }
+      
+      if (selectedVenue) {
+        const [building, room] = selectedVenue.split('|');
+        filteredEvents = filteredEvents.filter(event => 
+          event.venue.building === building && event.venue.room === room
+        );
+      }
+      
+      // Generate report statistics
+      const reportStats = {
+        totalEvents: filteredEvents.length,
+        averageDuration: calculateAverageDuration(filteredEvents),
+        eventsByCategory: countEventsByCategory(filteredEvents),
+        clubParticipation: countEventsByClub(filteredEvents)
+      };
+      
       setReportData({
-        events: [
-          {
-            _id: '1',
-            title: 'Introduction to Python',
-            club: { name: 'Computer Science Club' },
-            startDate: '2025-03-15T14:00:00Z',
-            endDate: '2025-03-15T16:00:00Z',
-            registrationCount: 42,
-            attendanceCount: 35
-          },
-          {
-            _id: '2',
-            title: 'Data Structures Workshop',
-            club: { name: 'Computer Science Club' },
-            startDate: '2025-03-22T13:00:00Z',
-            endDate: '2025-03-22T15:30:00Z',
-            registrationCount: 38,
-            attendanceCount: 30
-          },
-          {
-            _id: '3',
-            title: 'Calculus Study Group',
-            club: { name: 'Math Club' },
-            startDate: '2025-03-18T15:00:00Z',
-            endDate: '2025-03-18T17:00:00Z',
-            registrationCount: 25,
-            attendanceCount: 22
-          }
-        ],
-        summary: {
-          totalEvents: 3,
-          averageDuration: 2.5,
-          averageRegistrations: 35,
-          averageAttendance: 29,
-          averageAttendanceRate: 0.83
-        }
+        events: filteredEvents,
+        stats: reportStats
       });
       
-      setReportGenerated(true);
       setLoading(false);
-    }, 1000);
+    }, 500);
   };
   
-  const resetFilters = () => {
-    const today = new Date();
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
+  const calculateAverageDuration = (events) => {
+    if (events.length === 0) return 0;
     
-    setStartDate(lastMonth.toISOString().split('T')[0]);
-    setEndDate(today.toISOString().split('T')[0]);
-    setSelectedClub('');
-    setSelectedVenue('');
-    setReportGenerated(false);
-    setReportData(null);
+    const totalDuration = events.reduce((sum, event) => {
+      const start = new Date(event.startDate);
+      const end = new Date(event.endDate);
+      const durationHours = (end - start) / (1000 * 60 * 60);
+      return sum + durationHours;
+    }, 0);
+    
+    return (totalDuration / events.length).toFixed(1);
   };
   
-  // Format dates for display
+  const countEventsByCategory = (events) => {
+    const categories = {};
+    
+    events.forEach(event => {
+      if (!categories[event.category]) {
+        categories[event.category] = 0;
+      }
+      categories[event.category]++;
+    });
+    
+    return categories;
+  };
+  
+  const countEventsByClub = (events) => {
+    const clubEvents = {};
+    
+    events.forEach(event => {
+      if (!clubEvents[event.clubId.name]) {
+        clubEvents[event.clubId.name] = 0;
+      }
+      clubEvents[event.clubId.name]++;
+    });
+    
+    return clubEvents;
+  };
+  
+  // Format date for display
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-  
-  // Calculate duration in hours
-  const calculateDuration = (startDate, endDate) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffMs = end - start;
-    return (diffMs / (1000 * 60 * 60)).toFixed(1);
-  };
-  
-  // Calculate attendance rate
-  const calculateAttendanceRate = (attended, registered) => {
-    if (!registered) return '0%';
-    return `${Math.round((attended / registered) * 100)}%`;
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return dateString;
+    }
   };
   
   return (
-    <div className="report-container">
-      <h1>Event Report</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="text-center mb-10">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Event Reports</h1>
+        <p className="text-gray-600 max-w-3xl mx-auto">
+          Generate reports on events based on date range, club, and venue to track activity across campus.
+        </p>
+      </div>
       
-      <div className="report-filters">
-        <div className="filter-section">
-          <h2>Filter Events</h2>
+      <div className="bg-white shadow rounded-lg mb-8 overflow-hidden">
+        <div className="px-4 py-5 sm:p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Report Filters</h2>
           
-          <div className="filter-row">
-            <div className="filter-group">
-              <label>Date Range</label>
-              <div className="date-range">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                />
-                <span>to</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div>
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                id="startDate"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
             </div>
-          </div>
-          
-          <div className="filter-row">
-            <div className="filter-group">
-              <label htmlFor="clubSelect">Club</label>
+            
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                id="endDate"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="clubSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                Club
+              </label>
               <select
                 id="clubSelect"
                 value={selectedClub}
-                onChange={e => setSelectedClub(e.target.value)}
+                onChange={(e) => setSelectedClub(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               >
                 <option value="">All Clubs</option>
                 {clubs.map(club => (
@@ -167,12 +185,15 @@ const EventReport = () => {
               </select>
             </div>
             
-            <div className="filter-group">
-              <label htmlFor="venueSelect">Venue</label>
+            <div>
+              <label htmlFor="venueSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                Venue
+              </label>
               <select
                 id="venueSelect"
                 value={selectedVenue}
-                onChange={e => setSelectedVenue(e.target.value)}
+                onChange={(e) => setSelectedVenue(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               >
                 <option value="">All Venues</option>
                 {venues.map((venue, index) => (
@@ -184,98 +205,99 @@ const EventReport = () => {
             </div>
           </div>
           
-          <div className="filter-actions">
-            <button onClick={generateReport} className="btn-generate">
-              Generate Report
-            </button>
-            <button onClick={resetFilters} className="btn-reset">
-              Reset Filters
+          <div className="flex justify-center">
+            <button
+              onClick={handleGenerateReport}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {loading ? 'Generating...' : 'Generate Report'}
             </button>
           </div>
         </div>
       </div>
       
-      {loading && <div className="loading">Generating report...</div>}
-      
-      {reportGenerated && reportData && (
-        <div className="report-results">
-          <div className="report-header">
-            <h2>Event Report Results</h2>
-            <div className="report-meta">
-              <p>
-                <strong>Period:</strong> {formatDate(startDate)} to {formatDate(endDate)}
-              </p>
-              {selectedClub && (
-                <p>
-                  <strong>Club:</strong> {clubs.find(c => c._id === selectedClub)?.name || 'All Clubs'}
-                </p>
-              )}
-              {selectedVenue && (
-                <p>
-                  <strong>Venue:</strong> {selectedVenue.replace('|', ' - ')}
-                </p>
-              )}
-              <p>
-                <strong>Total Events:</strong> {reportData.events.length}
-              </p>
+      {reportData && (
+        <div className="bg-white shadow rounded-lg overflow-hidden mb-8">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-medium text-gray-900">Report Results</h2>
+              <span className="text-sm text-gray-500">
+                {reportData.events.length} events found
+              </span>
             </div>
+            
+            {reportData.events.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No events match the selected criteria.
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="bg-indigo-50 p-4 rounded-lg">
+                    <p className="text-sm text-indigo-600 font-medium">Total Events</p>
+                    <p className="text-3xl font-bold text-indigo-700">
+                      {reportData.stats.totalEvents}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-indigo-50 p-4 rounded-lg">
+                    <p className="text-sm text-indigo-600 font-medium">Average Duration</p>
+                    <p className="text-3xl font-bold text-indigo-700">
+                      {reportData.stats.averageDuration} hours
+                    </p>
+                  </div>
+                  
+                  <div className="bg-indigo-50 p-4 rounded-lg">
+                    <p className="text-sm text-indigo-600 font-medium">Most Active Category</p>
+                    <p className="text-3xl font-bold text-indigo-700">
+                      {Object.entries(reportData.stats.eventsByCategory).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                
+                <h3 className="text-md font-medium text-gray-700 mb-3">Events List</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead>
+                      <tr>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Event</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Club</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
+                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Venue</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {reportData.events.map(event => (
+                        <tr key={event._id}>
+                          <td className="px-3 py-4 text-sm text-gray-800 font-medium">{event.title}</td>
+                          <td className="px-3 py-4 text-sm text-gray-500">{event.clubId.name}</td>
+                          <td className="px-3 py-4 text-sm text-gray-500">{event.category}</td>
+                          <td className="px-3 py-4 text-sm text-gray-500">{formatDate(event.startDate)}</td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {event.venue.building} - {event.venue.room}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
           
-          <div className="report-summary">
-            <h3>Summary Statistics</h3>
-            <div className="summary-stats">
-              <div className="stat-card">
-                <div className="stat-value">{reportData.summary.averageDuration.toFixed(1)}</div>
-                <div className="stat-label">Avg. Duration (hours)</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{reportData.summary.averageRegistrations.toFixed(0)}</div>
-                <div className="stat-label">Avg. Registrations</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{reportData.summary.averageAttendance.toFixed(0)}</div>
-                <div className="stat-label">Avg. Attendance</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{(reportData.summary.averageAttendanceRate * 100).toFixed(0)}%</div>
-                <div className="stat-label">Avg. Attendance Rate</div>
-              </div>
+          <div className="bg-gray-50 px-4 py-4 sm:px-6 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">
+                Report generated on {new Date().toLocaleString()}
+              </span>
+              <button
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Export CSV
+              </button>
             </div>
-          </div>
-          
-          <div className="events-table-container">
-            <h3>Events</h3>
-            <table className="events-table">
-              <thead>
-                <tr>
-                  <th>Event</th>
-                  <th>Club</th>
-                  <th>Date</th>
-                  <th>Duration (hrs)</th>
-                  <th>Registrations</th>
-                  <th>Attendance</th>
-                  <th>Attendance Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportData.events.map(event => (
-                  <tr key={event._id}>
-                    <td>{event.title}</td>
-                    <td>{event.club.name}</td>
-                    <td>{formatDate(event.startDate)}</td>
-                    <td>{calculateDuration(event.startDate, event.endDate)}</td>
-                    <td>{event.registrationCount}</td>
-                    <td>{event.attendanceCount}</td>
-                    <td>{calculateAttendanceRate(event.attendanceCount, event.registrationCount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          <div className="report-actions">
-            <button className="btn-export">Export to CSV</button>
-            <button className="btn-print">Print Report</button>
           </div>
         </div>
       )}

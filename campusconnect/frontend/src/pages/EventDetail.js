@@ -4,143 +4,127 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 const EventDetail = () => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   
   const { id } = useParams();
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Simulate API call to fetch event details
-    setTimeout(() => {
-      // Mock data for event details
-      setEvent({
-        _id: id,
-        title: 'Sample Event',
-        description: 'This is a detailed description of the sample event. It includes information about what attendees can expect, what they should bring, and other important details.',
-        status: 'upcoming',
-        clubId: {
-          name: 'Computer Science Club',
-          category: 'Academic'
-        },
-        category: 'Workshop',
-        startDate: '2025-04-15T14:00:00Z',
-        endDate: '2025-04-15T16:00:00Z',
-        location: 'Main Campus',
-        venue: {
-          building: 'Science Building',
-          room: '101'
-        },
-        capacity: 50,
-        registeredCount: 30,
-        availableSpots: 20
-      });
+    // In a real app, fetch from API
+    // For now, get from localStorage
+    const fetchEvent = () => {
+      const storedEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
+      const foundEvent = storedEvents.find(event => event._id === id);
       
+      if (foundEvent) {
+        setEvent(foundEvent);
+      }
       setLoading(false);
-    }, 500);
+    };
+    
+    fetchEvent();
   }, [id]);
   
-  // Format dates for display
-  const formatDate = (dateString) => {
-    const options = { 
-      weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleString(undefined, options);
+  const handleDelete = () => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
+      const storedEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
+      const updatedEvents = storedEvents.filter(event => event._id !== id);
+      localStorage.setItem('campusEvents', JSON.stringify(updatedEvents));
+      navigate('/');
+    }
   };
   
-  const handleDeleteEvent = () => {
-    if (window.confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      // Simulate API call to delete event
-      alert('Event deleted successfully');
-      navigate('/events');
+  // Format date for display
+  const formatDate = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return dateString; // Fallback if date format is not correct
     }
   };
   
   if (loading) {
-    return <div className="loading">Loading event details...</div>;
-  }
-  
-  if (error) {
-    return <div className="error">{error}</div>;
+    return <div className="text-center py-12 text-gray-500">Loading event details...</div>;
   }
   
   if (!event) {
-    return <div className="not-found">Event not found</div>;
+    return (
+      <div className="max-w-md mx-auto mt-12 text-center bg-white shadow rounded-lg p-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Event Not Found</h2>
+        <p className="text-gray-600 mb-6">The event you're looking for doesn't exist or has been removed.</p>
+        <Link 
+          to="/" 
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Back to Home
+        </Link>
+      </div>
+    );
   }
   
   return (
-    <div className="event-detail-container">
-      <div className="event-detail-header">
-        <div className="header-content">
-          <h1>{event.title}</h1>
-          <span className={`status-badge status-${event.status}`}>{event.status}</span>
-        </div>
-        
-        <div className="header-actions">
-          <Link to={`/events/edit/${event._id}`} className="btn-edit">
-            Edit Event
-          </Link>
-          <button onClick={handleDeleteEvent} className="btn-delete">
-            Delete Event
-          </button>
-          <Link to="/events" className="btn-back">
-            Back to Events
-          </Link>
+    <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg overflow-hidden">
+      <div className="bg-indigo-50 px-6 py-4 border-b border-gray-200">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">{event.title}</h1>
+        <div className="flex items-center space-x-4">
+          <span className="px-2 py-1 text-xs font-semibold bg-indigo-600 text-white rounded">
+            {event.category}
+          </span>
+          <span className="text-sm text-gray-600">
+            Hosted by {event.clubId.name}
+          </span>
         </div>
       </div>
       
-      <div className="event-detail-content">
-        <div className="event-detail-main">
-          <section className="event-section">
-            <h2>Event Details</h2>
-            <div className="event-info-grid">
-              <div className="info-item">
-                <span className="label">Club</span>
-                <span className="value">{event.clubId.name}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">Category</span>
-                <span className="value">{event.category}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">Start Date & Time</span>
-                <span className="value">{formatDate(event.startDate)}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">End Date & Time</span>
-                <span className="value">{formatDate(event.endDate)}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">Location</span>
-                <span className="value">{event.location}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">Venue</span>
-                <span className="value">{event.venue.building} - {event.venue.room}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">Capacity</span>
-                <span className="value">
-                  {event.registeredCount}/{event.capacity} registered
-                  ({event.availableSpots} spots available)
-                </span>
-              </div>
-            </div>
-          </section>
+      <div className="px-6 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 pb-8 border-b border-gray-200">
+          <div>
+            <h3 className="text-lg font-medium text-indigo-600 mb-2">Date & Time</h3>
+            <p className="text-gray-600 mb-1">{formatDate(event.startDate)}</p>
+            <p className="text-gray-600 mb-1">to</p>
+            <p className="text-gray-600">{formatDate(event.endDate)}</p>
+          </div>
           
-          <section className="event-section">
-            <h2>Description</h2>
-            <p className="event-description">{event.description}</p>
-          </section>
+          <div>
+            <h3 className="text-lg font-medium text-indigo-600 mb-2">Location</h3>
+            <p className="text-gray-600">{event.venue.building}, Room {event.venue.room}</p>
+          </div>
+        </div>
+        
+        <div className="mb-8">
+          <h3 className="text-lg font-medium text-indigo-600 mb-3">Description</h3>
+          <p className="text-gray-600 whitespace-pre-line">{event.description}</p>
+        </div>
+      </div>
+      
+      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+        <Link 
+          to="/" 
+          className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Back to Events
+        </Link>
+        
+        <div className="space-x-3">
+          <Link 
+            to={`/events/edit/${event._id}`} 
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Edit Event
+          </Link>
           
-          <section className="event-section">
-            <h2>Organizers</h2>
-            <p>This event is organized by the {event.clubId.name}.</p>
-          </section>
+          <button
+            onClick={handleDelete}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Delete Event
+          </button>
         </div>
       </div>
     </div>

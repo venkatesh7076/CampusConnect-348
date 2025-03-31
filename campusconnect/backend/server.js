@@ -21,7 +21,12 @@ mongoose.connect(process.env.MONGO_URI)
 
 // Routes
 const itemRoutes = require('./routes/items');
+const clubRoutes = require('./routes/clubs');
+const eventRoutes = require('./routes/events'); // Add this line
+
 app.use('/api/items', itemRoutes);
+app.use('/api/clubs', clubRoutes);
+app.use('/api/events', eventRoutes); // Add this line
 
 // Basic route for testing
 app.get('/', (req, res) => {

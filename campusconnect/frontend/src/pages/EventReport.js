@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const EventReport = () => {
   const [startDate, setStartDate] = useState('');
@@ -7,19 +8,82 @@ const EventReport = () => {
   const [selectedVenue, setSelectedVenue] = useState('');
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [fetchingData, setFetchingData] = useState(true);
   
-  // Sample clubs and venues
-  const clubs = [
-    { _id: '1', name: 'Computer Science Club' },
-    { _id: '2', name: 'Math Club' },
-    { _id: '3', name: 'Psychology Society' }
-  ];
+  // Change from constant to state
+  const [clubs, setClubs] = useState([]);
+  const [venues, setVenues] = useState([]);
   
-  const venues = [
-    { building: 'Science Building', room: '101' },
-    { building: 'Science Building', room: '102' },
-    { building: 'Math Building', room: '201' }
-  ];
+  // Fetch clubs and venues from database
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch clubs from API
+        const clubsResponse = await axios.get('http://localhost:5001/api/clubs');
+        console.log('Clubs fetched for report:', clubsResponse.data);
+        
+        if (clubsResponse.data && Array.isArray(clubsResponse.data)) {
+          setClubs(clubsResponse.data);
+        } else {
+          // Fallback club data
+          console.error('API response format incorrect');
+          setClubs([
+            { _id: '67e988e5d2130196d11add75', name: 'Computer Science Club' },
+            { _id: '67e988e5d2130196d11add76', name: 'Math Club' },
+            { _id: '67e988e5d2130196d11add77', name: 'Psychology Society' },
+            { _id: '67e988e5d2130196d11add78', name: 'Photography Club' }
+          ]);
+        }
+        
+        // Get venues from existing events in localStorage
+        const existingEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
+        const uniqueVenues = [];
+        const venueMap = new Map();
+        
+        // Extract unique venues from events
+        existingEvents.forEach(event => {
+          const venueKey = `${event.venue.building}|${event.venue.room}`;
+          if (!venueMap.has(venueKey)) {
+            venueMap.set(venueKey, true);
+            uniqueVenues.push({
+              building: event.venue.building,
+              room: event.venue.room
+            });
+          }
+        });
+        
+        // If no venues found, provide defaults
+        if (uniqueVenues.length === 0) {
+          setVenues([
+            { building: 'Science Building', room: '101' },
+            { building: 'Science Building', room: '102' },
+            { building: 'Math Building', room: '201' }
+          ]);
+        } else {
+          setVenues(uniqueVenues);
+        }
+        
+        setFetchingData(false);
+      } catch (err) {
+        console.error('Error fetching data for report:', err);
+        // Fallback data
+        setClubs([
+          { _id: '67e988e5d2130196d11add75', name: 'Computer Science Club' },
+          { _id: '67e988e5d2130196d11add76', name: 'Math Club' },
+          { _id: '67e988e5d2130196d11add77', name: 'Psychology Society' },
+          { _id: '67e988e5d2130196d11add78', name: 'Photography Club' }
+        ]);
+        setVenues([
+          { building: 'Science Building', room: '101' },
+          { building: 'Science Building', room: '102' },
+          { building: 'Math Building', room: '201' }
+        ]);
+        setFetchingData(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
   
   const handleGenerateReport = () => {
     setLoading(true);
@@ -125,6 +189,10 @@ const EventReport = () => {
       return dateString;
     }
   };
+  
+  if (fetchingData) {
+    return <div className="text-center py-6">Loading report data...</div>;
+  }
   
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

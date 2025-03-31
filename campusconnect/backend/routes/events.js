@@ -18,15 +18,16 @@ router.get('/form-data', auth, eventController.getEventFormData);
 // @access  Public
 router.get('/search', eventController.searchEvents);
 
-// @route   GET /api/events/:id
-// @desc    Get a single event by ID
-// @access  Public
-router.get('/:id', eventController.getEventById);
-
 // @route   POST /api/events
 // @desc    Create a new event
 // @access  Private
 router.post('/', auth, eventController.createEvent);
+
+// These routes must come after the specific routes above
+// @route   GET /api/events/:id
+// @desc    Get a single event by ID
+// @access  Public
+router.get('/:id', eventController.getEventById);
 
 // @route   PUT /api/events/:id
 // @desc    Update an existing event

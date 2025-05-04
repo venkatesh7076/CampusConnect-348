@@ -1,35 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import api from '../services/api';
 
 const EventDetail = () => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   const { id } = useParams();
   const navigate = useNavigate();
   
   useEffect(() => {
-    // In a real app, fetch from API
-    // For now, get from localStorage
-    const fetchEvent = () => {
-      const storedEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
-      const foundEvent = storedEvents.find(event => event._id === id);
-      
-      if (foundEvent) {
-        setEvent(foundEvent);
+    const fetchEvent = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/events/${id}`);
+        setEvent(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching event details:', err);
+        setError('Failed to load event details. Please try again later.');
+        setLoading(false);
       }
-      setLoading(false);
     };
     
     fetchEvent();
   }, [id]);
   
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this event?')) {
-      const storedEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
-      const updatedEvents = storedEvents.filter(event => event._id !== id);
-      localStorage.setItem('campusEvents', JSON.stringify(updatedEvents));
-      navigate('/');
+      try {
+        await api.delete(`/events/${id}`);
+        navigate('/');
+      } catch (err) {
+        console.error('Error deleting event:', err);
+        setError('Failed to delete event. Please try again later.');
+      }
     }
   };
   
@@ -51,6 +57,21 @@ const EventDetail = () => {
   
   if (loading) {
     return <div className="text-center py-12 text-gray-500">Loading event details...</div>;
+  }
+  
+  if (error) {
+    return (
+      <div className="max-w-md mx-auto mt-12 text-center bg-white shadow rounded-lg p-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Error Loading Event</h2>
+        <p className="text-gray-600 mb-6">{error}</p>
+        <Link 
+          to="/" 
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Back to Home
+        </Link>
+      </div>
+    );
   }
   
   if (!event) {
@@ -77,7 +98,9 @@ const EventDetail = () => {
             {event.category}
           </span>
           <span className="text-sm text-gray-600">
-            Hosted by {event.clubId.name}
+            Hosted by {typeof event.clubId === 'object' && event.clubId && event.clubId.name 
+              ? event.clubId.name 
+              : 'Unknown Club'}
           </span>
         </div>
       </div>
@@ -93,7 +116,9 @@ const EventDetail = () => {
           
           <div>
             <h3 className="text-lg font-medium text-indigo-600 mb-2">Location</h3>
-            <p className="text-gray-600">{event.venue.building}, Room {event.venue.room}</p>
+            <p className="text-gray-600">
+              {event.venue ? `${event.venue.building}, Room ${event.venue.room}` : event.location}
+            </p>
           </div>
         </div>
         

@@ -9,12 +9,14 @@ const EventReport = () => {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(true);
+  const [error, setError] = useState(null);
   
   // Change from constant to state
   const [clubs, setClubs] = useState([]);
   const [venues, setVenues] = useState([]);
+  const [events, setEvents] = useState([]);
   
-  // Fetch clubs and venues from database
+  // Fetch clubs, venues, and events from database
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -35,37 +37,55 @@ const EventReport = () => {
           ]);
         }
         
-        // Get venues from existing events in localStorage
-        const existingEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
-        const uniqueVenues = [];
-        const venueMap = new Map();
-        
-        // Extract unique venues from events
-        existingEvents.forEach(event => {
-          const venueKey = `${event.venue.building}|${event.venue.room}`;
-          if (!venueMap.has(venueKey)) {
-            venueMap.set(venueKey, true);
-            uniqueVenues.push({
-              building: event.venue.building,
-              room: event.venue.room
+        // Fetch events
+        try {
+          const eventsResponse = await axios.get('http://localhost:5001/api/events');
+          console.log('Events fetched for report:', eventsResponse.data);
+          
+          if (eventsResponse.data && Array.isArray(eventsResponse.data)) {
+            setEvents(eventsResponse.data);
+            
+            // Extract unique venues from events
+            const uniqueVenues = [];
+            const venueMap = new Map();
+            
+            eventsResponse.data.forEach(event => {
+              if (event.venue && event.venue.building && event.venue.room) {
+                const venueKey = `${event.venue.building}|${event.venue.room}`;
+                if (!venueMap.has(venueKey)) {
+                  venueMap.set(venueKey, true);
+                  uniqueVenues.push({
+                    building: event.venue.building,
+                    room: event.venue.room
+                  });
+                }
+              }
             });
+            
+            // If venues found, set them; otherwise use defaults
+            if (uniqueVenues.length > 0) {
+              setVenues(uniqueVenues);
+            } else {
+              setVenues([
+                { building: 'Science Building', room: '101' },
+                { building: 'Science Building', room: '102' },
+                { building: 'Math Building', room: '201' }
+              ]);
+            }
           }
-        });
-        
-        // If no venues found, provide defaults
-        if (uniqueVenues.length === 0) {
-          setVenues([
-            { building: 'Science Building', room: '101' },
-            { building: 'Science Building', room: '102' },
-            { building: 'Math Building', room: '201' }
-          ]);
-        } else {
-          setVenues(uniqueVenues);
+        } catch (eventsErr) {
+          console.error('Error fetching events:', eventsErr);
+          // Fallback to localStorage if API call fails
+          const storedEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
+          setEvents(storedEvents);
+          console.log('Using stored events from localStorage:', storedEvents);
         }
         
         setFetchingData(false);
       } catch (err) {
         console.error('Error fetching data for report:', err);
+        setError('Failed to load data. Please try again later.');
+        
         // Fallback data
         setClubs([
           { _id: '67e988e5d2130196d11add75', name: 'Computer Science Club' },
@@ -88,64 +108,72 @@ const EventReport = () => {
   const handleGenerateReport = () => {
     setLoading(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
-      // Get events from localStorage
-      const allEvents = JSON.parse(localStorage.getItem('campusEvents') || '[]');
-      
-      // Filter events based on criteria
-      let filteredEvents = [...allEvents];
-      
-      if (startDate) {
-        filteredEvents = filteredEvents.filter(event => 
-          new Date(event.startDate) >= new Date(startDate)
-        );
-      }
-      
-      if (endDate) {
-        filteredEvents = filteredEvents.filter(event => 
-          new Date(event.endDate) <= new Date(endDate + 'T23:59:59')
-        );
-      }
-      
-      if (selectedClub) {
-        filteredEvents = filteredEvents.filter(event => 
-          event.clubId._id === selectedClub
-        );
-      }
-      
-      if (selectedVenue) {
-        const [building, room] = selectedVenue.split('|');
-        filteredEvents = filteredEvents.filter(event => 
-          event.venue.building === building && event.venue.room === room
-        );
-      }
-      
-      // Generate report statistics
-      const reportStats = {
-        totalEvents: filteredEvents.length,
-        averageDuration: calculateAverageDuration(filteredEvents),
-        eventsByCategory: countEventsByCategory(filteredEvents),
-        clubParticipation: countEventsByClub(filteredEvents)
-      };
-      
-      setReportData({
-        events: filteredEvents,
-        stats: reportStats
+    // Use the events data from state instead of localStorage
+    let filteredEvents = [...events];
+    
+    if (startDate) {
+      filteredEvents = filteredEvents.filter(event => 
+        new Date(event.startDate) >= new Date(startDate)
+      );
+    }
+    
+    if (endDate) {
+      filteredEvents = filteredEvents.filter(event => 
+        new Date(event.endDate) <= new Date(endDate + 'T23:59:59')
+      );
+    }
+    
+    if (selectedClub) {
+      filteredEvents = filteredEvents.filter(event => {
+        // Handle both object references and string IDs
+        if (typeof event.clubId === 'object' && event.clubId !== null) {
+          return event.clubId._id === selectedClub;
+        } else {
+          return event.clubId === selectedClub;
+        }
       });
-      
-      setLoading(false);
-    }, 500);
+    }
+    
+    if (selectedVenue) {
+      const [building, room] = selectedVenue.split('|');
+      filteredEvents = filteredEvents.filter(event => 
+        event.venue && 
+        event.venue.building === building && 
+        event.venue.room === room
+      );
+    }
+    
+    console.log('Filtered events:', filteredEvents);
+    
+    // Generate report statistics
+    const reportStats = {
+      totalEvents: filteredEvents.length,
+      averageDuration: calculateAverageDuration(filteredEvents),
+      eventsByCategory: countEventsByCategory(filteredEvents),
+      clubParticipation: countEventsByClub(filteredEvents)
+    };
+    
+    setReportData({
+      events: filteredEvents,
+      stats: reportStats
+    });
+    
+    setLoading(false);
   };
   
   const calculateAverageDuration = (events) => {
     if (events.length === 0) return 0;
     
     const totalDuration = events.reduce((sum, event) => {
-      const start = new Date(event.startDate);
-      const end = new Date(event.endDate);
-      const durationHours = (end - start) / (1000 * 60 * 60);
-      return sum + durationHours;
+      try {
+        const start = new Date(event.startDate);
+        const end = new Date(event.endDate);
+        const durationHours = (end - start) / (1000 * 60 * 60);
+        return sum + durationHours;
+      } catch (error) {
+        console.error('Error calculating duration for event:', event);
+        return sum;
+      }
     }, 0);
     
     return (totalDuration / events.length).toFixed(1);
@@ -155,10 +183,12 @@ const EventReport = () => {
     const categories = {};
     
     events.forEach(event => {
-      if (!categories[event.category]) {
-        categories[event.category] = 0;
+      if (event.category) {
+        if (!categories[event.category]) {
+          categories[event.category] = 0;
+        }
+        categories[event.category]++;
       }
-      categories[event.category]++;
     });
     
     return categories;
@@ -168,10 +198,25 @@ const EventReport = () => {
     const clubEvents = {};
     
     events.forEach(event => {
-      if (!clubEvents[event.clubId.name]) {
-        clubEvents[event.clubId.name] = 0;
+      // Handle different clubId formats
+      let clubName = 'Unknown Club';
+      
+      if (event.clubId) {
+        if (typeof event.clubId === 'object' && event.clubId !== null && event.clubId.name) {
+          clubName = event.clubId.name;
+        } else {
+          // Try to find the club name from clubs array
+          const club = clubs.find(c => c._id === event.clubId);
+          if (club) {
+            clubName = club.name;
+          }
+        }
       }
-      clubEvents[event.clubId.name]++;
+      
+      if (!clubEvents[clubName]) {
+        clubEvents[clubName] = 0;
+      }
+      clubEvents[clubName]++;
     });
     
     return clubEvents;
@@ -202,6 +247,12 @@ const EventReport = () => {
           Generate reports on events based on date range, club, and venue to track activity across campus.
         </p>
       </div>
+      
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
       
       <div className="bg-white shadow rounded-lg mb-8 overflow-hidden">
         <div className="px-4 py-5 sm:p-6">
@@ -319,7 +370,9 @@ const EventReport = () => {
                   <div className="bg-indigo-50 p-4 rounded-lg">
                     <p className="text-sm text-indigo-600 font-medium">Most Active Category</p>
                     <p className="text-3xl font-bold text-indigo-700">
-                      {Object.entries(reportData.stats.eventsByCategory).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'}
+                      {Object.entries(reportData.stats.eventsByCategory).length > 0 
+                        ? Object.entries(reportData.stats.eventsByCategory).sort((a, b) => b[1] - a[1])[0][0] 
+                        : 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -340,11 +393,15 @@ const EventReport = () => {
                       {reportData.events.map(event => (
                         <tr key={event._id}>
                           <td className="px-3 py-4 text-sm text-gray-800 font-medium">{event.title}</td>
-                          <td className="px-3 py-4 text-sm text-gray-500">{event.clubId.name}</td>
+                          <td className="px-3 py-4 text-sm text-gray-500">
+                            {typeof event.clubId === 'object' && event.clubId && event.clubId.name
+                              ? event.clubId.name
+                              : clubs.find(c => c._id === event.clubId)?.name || 'Unknown Club'}
+                          </td>
                           <td className="px-3 py-4 text-sm text-gray-500">{event.category}</td>
                           <td className="px-3 py-4 text-sm text-gray-500">{formatDate(event.startDate)}</td>
                           <td className="px-3 py-4 text-sm text-gray-500">
-                            {event.venue.building} - {event.venue.room}
+                            {event.venue ? `${event.venue.building} - ${event.venue.room}` : 'N/A'}
                           </td>
                         </tr>
                       ))}

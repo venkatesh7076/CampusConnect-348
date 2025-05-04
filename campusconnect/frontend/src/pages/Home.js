@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import EventCard from '../components/events/EventCard'; // This matches your structure
+import api from '../services/api';
 
 const Home = () => {
   const [events, setEvents] = useState([]);
@@ -21,7 +22,7 @@ const Home = () => {
       const timestamp = new Date().getTime();
       console.log(`HOME: Directly fetching events from ${API_BASE_URL}/events?t=${timestamp}`);
       
-      const response = await axios.get(`${API_BASE_URL}/events?t=${timestamp}`);
+      const response = await api.get(`/events?t=${timestamp}`);
       console.log('HOME: Raw API response:', response);
       
       if (response.status === 200 && Array.isArray(response.data)) {

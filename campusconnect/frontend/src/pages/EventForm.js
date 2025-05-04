@@ -100,8 +100,14 @@ const EventForm = () => {
         const formatDateForInput = (dateString) => {
           try {
             const date = new Date(dateString);
+            // Check if the date is valid
+            if (isNaN(date.getTime())) {
+              console.error("Invalid date:", dateString);
+              return "";
+            }
             return date.toISOString().split(".")[0].slice(0, -3); // Format for datetime-local input
-          } catch {
+          } catch (err) {
+            console.error("Error formatting date:", err);
             return "";
           }
         };
@@ -198,15 +204,18 @@ const EventForm = () => {
       const headers = token ? { "x-auth-token": token } : {};
 
       if (isEdit) {
-        // Update existing event in MongoDB
-        console.log(
-          `Sending PUT request to http://localhost:5001/api/events/${id}`
-        );
-        response = await api.put(`/events/${id}`, eventData, { headers });
-        console.log("Update response:", response.data);
+        try {
+          // Update existing event in MongoDB
+          console.log(`Sending PUT request to ${api.defaults.baseURL}/events/${id}`);
+          response = await api.put(`/events/${id}`, eventData, { headers });
+          console.log("Update response:", response.data);
+        } catch (updateErr) {
+          console.error("Specific update error:", updateErr);
+          throw updateErr; // Re-throw to be caught by the outer try/catch
+        }
       } else {
         // Create new event in MongoDB
-        console.log("Sending POST request to http://localhost:5001/api/events");
+        console.log(`Sending POST request to ${api.defaults.baseURL}/events`);
         response = await api.post("/events", eventData, { headers });
         console.log("Create response:", response.data);
       }

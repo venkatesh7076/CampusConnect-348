@@ -13,9 +13,10 @@ const app = express();
 // Update CORS to accept requests from your Vercel frontend
 app.use(
   cors({
+    // Fixed version
     origin: [
       "http://localhost:3000",
-      process.env.FRONTEND_URL || 'https://campus-connect-348-9o5b.vercel.app/', 'http://localhost:3000'
+      process.env.FRONTEND_URL || "https://campus-connect-348-9o5b.vercel.app",
     ],
     credentials: true,
   })
